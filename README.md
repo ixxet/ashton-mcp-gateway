@@ -23,3 +23,9 @@ Only start this repo once the first service interfaces exist. The first useful s
 ## Current State
 
 Docs-first stub only. No Go or Rust implementation scaffold has been created yet.
+
+See:
+
+- `docs/roadmap.md`
+- `docs/runbooks/first-route.md`
+- `docs/growing-pains.md`

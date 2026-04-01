@@ -22,3 +22,7 @@ Create a single safe entry point for tool discovery and invocation after the ser
 - one tool can be discovered
 - one read-only call can be routed end to end
 - the gateway remains narrow, inspectable, and worth expanding later
+
+## Tracer Ownership
+
+- later tracer: first routed read-only tool call after service repos expose stable surfaces
