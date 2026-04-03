@@ -109,6 +109,33 @@ func TestToolsCallEndpointRequiresFacilityID(t *testing.T) {
 	}
 }
 
+func TestToolsCallEndpointRejectsUnknownTool(t *testing.T) {
+	handler := NewHandler(testRegistry(), testService())
+
+	request := httptest.NewRequest(http.MethodPost, "/mcp/v1/tools/call", bytes.NewBufferString(`{
+		"tool_name": "missing.tool",
+		"arguments": {"facility_id": "ashtonbee"}
+	}`))
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestToolsCallEndpointRejectsMalformedJSON(t *testing.T) {
+	handler := NewHandler(testRegistry(), testService())
+
+	request := httptest.NewRequest(http.MethodPost, "/mcp/v1/tools/call", bytes.NewBufferString(`{"tool_name":`))
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
+	}
+}
+
 func testRegistry() manifest.Registry {
 	return manifest.Registry{
 		Tools: []manifest.Tool{

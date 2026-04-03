@@ -107,6 +107,32 @@ func TestCallToolRejectsUnknownTool(t *testing.T) {
 	}
 }
 
+func TestCallToolLogsUpstreamFailures(t *testing.T) {
+	t.Parallel()
+
+	var logBuffer bytes.Buffer
+	service := NewService(
+		testRegistry(),
+		stubAthenaClient{err: &athena.UpstreamError{StatusCode: 500, Message: "adapter offline"}},
+		slog.New(slog.NewTextHandler(&logBuffer, nil)),
+	)
+
+	_, err := service.CallTool(context.Background(), "athena.get_current_occupancy", map[string]any{
+		"facility_id": "ashtonbee",
+	})
+	if err == nil {
+		t.Fatal("CallTool() error = nil, want upstream failure")
+	}
+
+	logLine := logBuffer.String()
+	if !strings.Contains(logLine, "facility_id=ashtonbee") {
+		t.Fatalf("log = %q, want facility id", logLine)
+	}
+	if !strings.Contains(logLine, "outcome=upstream_error") {
+		t.Fatalf("log = %q, want upstream_error outcome", logLine)
+	}
+}
+
 func testRegistry() manifest.Registry {
 	var tool manifest.Tool
 	tool.Name = "athena.get_current_occupancy"
