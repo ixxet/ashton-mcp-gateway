@@ -7,7 +7,9 @@ only after the underlying service surfaces are worth routing.
 
 ## Current Line
 
-Current active line: `v0.1.0`
+Current shipped line: `v0.0.1`
+
+Current unreleased working line on `main`: `v0.1.0`
 
 - one executable Go gateway runtime is real
 - one manifest loader is real

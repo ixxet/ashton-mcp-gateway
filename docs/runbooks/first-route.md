@@ -27,19 +27,22 @@ ATHENA:
 
 ## Exact Commands
 
+Assumption: start from the `ASHTON/` parent directory that contains
+`athena/`, `ashton-proto/`, and `ashton-mcp-gateway/`.
+
 Start ATHENA:
 
 ```bash
-cd /Users/zizo/Personal-Projects/ASHTON/athena
+cd athena
 ATHENA_HTTP_ADDR='127.0.0.1:18090' go run ./cmd/athena serve
 ```
 
 Start the gateway:
 
 ```bash
-cd /Users/zizo/Personal-Projects/ASHTON/ashton-mcp-gateway
+cd ../ashton-mcp-gateway
 GATEWAY_HTTP_ADDR='127.0.0.1:18091' \
-GATEWAY_MANIFEST_DIR='/Users/zizo/Personal-Projects/ASHTON/ashton-proto/mcp' \
+GATEWAY_MANIFEST_DIR='../ashton-proto/mcp' \
 ATHENA_BASE_URL='http://127.0.0.1:18090' \
 go run ./cmd/ashton-mcp-gateway
 ```

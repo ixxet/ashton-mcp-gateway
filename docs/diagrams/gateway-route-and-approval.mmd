@@ -1,17 +1,17 @@
 flowchart LR
   clients["LangGraph agents, Claude, CLI, automation"]
-  registry["tool registry<br/>planned"]
+  registry["tool registry<br/>real, narrow"]
   auth["auth layer<br/>planned"]
-  router["service router<br/>planned"]
+  router["service router<br/>real, narrow"]
   audit["audit log<br/>planned"]
   hitl["HITL gate<br/>planned"]
-  athena["athena tools<br/>future routes"]
+  athena["athena tools<br/>first route real"]
   apollo["apollo tools<br/>future routes"]
   hermes["hermes tools<br/>future routes"]
 
   clients --> registry --> auth --> router
   router --> audit
   router --> hitl
-  hitl --> athena
-  hitl --> apollo
-  hitl --> hermes
+  router --> athena
+  hitl -. later .-> apollo
+  hitl -. later .-> hermes

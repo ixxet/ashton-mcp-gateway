@@ -10,9 +10,23 @@ That is the correct current state. The gateway only became worth implementing
 once the platform had real service truth to route. This README keeps the narrow
 runtime honest while preserving the larger future control-plane shape.
 
-## Planned Architecture
+## Status Legend
 
-The standalone Mermaid source for this plan lives at
+| Label | Meaning |
+| --- | --- |
+| `Shipped` | a git tag exists and represents the released repo line |
+| `Unreleased on main` | the code and docs are present on `main`, but no matching git tag exists yet |
+| `Planned` | documented future work only |
+
+Current as of `2026-04-04`:
+
+- latest shipped tag: `v0.0.1`
+- current unreleased working line on `main`: `v0.1.0`
+- next planned line after that: `v0.2.0`
+
+## Current And Future Architecture
+
+The standalone Mermaid source for the current and future view lives at
 [`docs/diagrams/gateway-route-and-approval.mmd`](docs/diagrams/gateway-route-and-approval.mmd).
 
 ```mermaid
@@ -63,7 +77,7 @@ flowchart LR
 | Rate limiting | Redis token bucket | Deferred | `v0.4.0` | Useful later, not required for the first routed read call |
 | Later rewrite path | Rust | Deferred | later than `v0.4.0` | Earned only after measured routing or concurrency pressure exists |
 
-## Why This Repo Matters
+## Why Build It Now
 
 | Reason | Explanation |
 | --- | --- |
@@ -93,6 +107,14 @@ The current release line is the authoritative boundary reminder.
 | Manifest registry | `GATEWAY_MANIFEST_DIR` | Real | Loads `*.json` tool manifests from the configured directory |
 | Read-path logs | stdout structured logs | Real | Emits `tool_name`, `source_service`, `facility_id`, `latency_ms`, and `outcome` |
 | Approval or persisted audit runtime | - | Deferred | Tracer 9 does not widen into write control |
+
+## Boundary Reminder
+
+| The gateway should own | The gateway should not own |
+| --- | --- |
+| tool discovery and routing | domain truth for occupancy, members, or staff workflows |
+| caller-facing read and later approval boundaries | service-specific business logic |
+| auditability of routed calls | private copies of service data models |
 
 ## Current State Block
 
@@ -128,6 +150,7 @@ The current release line is the authoritative boundary reminder.
 | Release line | Exact tags | Status | What became real | What stayed deferred |
 | --- | --- | --- | --- | --- |
 | `v0.0.1` | `v0.0.1` | Shipped | docs-only planning baseline | executable runtime, manifests, routing, audit, approvals, and rate limiting |
+| `v0.1.0` | - | Unreleased on `main` | executable Go runtime, first manifest-backed routed ATHENA occupancy read, and inspectable route logs | caller identity, persisted audit, approvals, and broader routing |
 
 ## Planned Release Lines
 
@@ -162,7 +185,7 @@ control layer only when the platform has earned one."
 
 ## Docs Map
 
-- [Planned gateway diagram](docs/diagrams/gateway-route-and-approval.mmd)
+- [Current and future gateway diagram](docs/diagrams/gateway-route-and-approval.mmd)
 - [Roadmap](docs/roadmap.md)
 - [Growing pains](docs/growing-pains.md)
 - [First-route runbook](docs/runbooks/first-route.md)
