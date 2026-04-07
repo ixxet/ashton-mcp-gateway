@@ -160,6 +160,14 @@ The current release line is the authoritative boundary reminder.
 | `v0.3.0` | first write approval and HITL line | add explicit human approval for write calls only after the read path is trusted | do not widen into rate limiting or full multi-service orchestration in the same line |
 | `v0.4.0` | rate limiting and broader registry line | expand only after the gateway already has real read and write proof | do not justify a Rust rewrite without a measured Go bottleneck |
 
+## Next Ladder Role
+
+| Line | Role | Why it matters |
+| --- | --- | --- |
+| `v0.2.0` / `Tracer 15` | caller identity, persisted audit, and one second routed read | turns the gateway from a thin first route into a caller-aware and auditable control surface |
+| `v0.3.0` | first write approval and HITL line | adds explicit write governance only after the read path is trusted |
+| `v0.4.0` | broader registry and rate limiting | widens the control plane only after real read and write proof exist |
+
 ## Planned Component Map
 
 | Planned Component | Responsibility | State |

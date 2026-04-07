@@ -25,6 +25,14 @@ Current unreleased working line on `main`: `v0.1.0`
 | `v0.3.0` | first write approval and HITL line | add explicit human approval for write calls only after the read path is trusted | do not widen into rate limiting or full multi-service orchestration in the same line |
 | `v0.4.0` | rate limiting and broader registry line | expand only after the gateway already has real read and write proof | do not justify a Rust rewrite without a measured Go bottleneck |
 
+## Next Ladder Role
+
+| Line | Role | Why it matters |
+| --- | --- | --- |
+| `Tracer 15` | caller identity, persisted audit, and one second routed read | turns the gateway from a first routed proof into a trusted narrow control-plane layer |
+| `v0.3.0` | first write approval and HITL line | adds explicit write governance only after the read path is trusted |
+| `v0.4.0` | broader registry and rate limiting | widens the control plane only after read and write proof already exist |
+
 ## Boundaries
 
 - Tracer 9 is not broad orchestration
