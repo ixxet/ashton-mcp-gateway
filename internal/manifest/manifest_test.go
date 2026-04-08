@@ -66,6 +66,52 @@ func TestLoadDirRejectsDuplicateNames(t *testing.T) {
 	}
 }
 
+func TestLoadDirRejectsUnsupportedRuntimeShape(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		payload string
+	}{
+		{
+			name: "unsupported tool name",
+			payload: validManifestJSON("athena.list_sessions"),
+		},
+		{
+			name: "unsupported method",
+			payload: `{
+  "name": "athena.get_current_occupancy",
+  "description": "Read occupancy",
+  "read_only": true,
+  "input": {
+    "required": ["facility_id"],
+    "properties": {
+      "facility_id": {"type": "string", "description": "Facility"}
+    }
+  },
+  "upstream": {
+    "service": "athena",
+    "method": "POST",
+    "path": "/api/v1/presence/count",
+    "query": {"facility": "facility_id"}
+  }
+}`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeManifestFile(t, dir, "tool.json", testCase.payload)
+
+			_, err := LoadDir(dir)
+			if err == nil {
+				t.Fatal("LoadDir() error = nil, want unsupported manifest failure")
+			}
+		})
+	}
+}
+
 func validManifestJSON(name string) string {
 	return `{
   "name": "` + name + `",

@@ -8,6 +8,8 @@ import (
 	"slices"
 )
 
+const supportedToolName = "athena.get_current_occupancy"
+
 type Registry struct {
 	Tools []Tool
 }
@@ -123,5 +125,37 @@ func validate(tool Tool) error {
 	if tool.Upstream.Path == "" {
 		return fmt.Errorf("upstream path is required")
 	}
+	if err := validateCurrentRuntimeSupport(tool); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateCurrentRuntimeSupport(tool Tool) error {
+	if tool.Name != supportedToolName {
+		return fmt.Errorf("current runtime supports only %q", supportedToolName)
+	}
+	if !tool.ReadOnly {
+		return fmt.Errorf("current runtime supports read-only tools only")
+	}
+	if len(tool.Input.Required) != 1 || tool.Input.Required[0] != "facility_id" {
+		return fmt.Errorf("current runtime requires exactly one required input: facility_id")
+	}
+	if _, ok := tool.Input.Properties["facility_id"]; !ok {
+		return fmt.Errorf("current runtime requires facility_id input metadata")
+	}
+	if tool.Upstream.Service != "athena" {
+		return fmt.Errorf("current runtime supports ATHENA upstream only")
+	}
+	if tool.Upstream.Method != "GET" {
+		return fmt.Errorf("current runtime supports GET upstream methods only")
+	}
+	if tool.Upstream.Path != "/api/v1/presence/count" {
+		return fmt.Errorf("current runtime supports ATHENA occupancy path only")
+	}
+	if tool.Upstream.Query["facility"] != "facility_id" {
+		return fmt.Errorf("current runtime requires facility query mapped from facility_id")
+	}
+
 	return nil
 }

@@ -72,10 +72,10 @@ Expected success shape:
 - `source_service=athena`
 - `latency_ms`
 
-Expected gateway success log:
+Expected gateway success log shape:
 
 ```text
-INFO gateway tool call tool_name=athena.get_current_occupancy source_service=athena facility_id=ashtonbee latency_ms=0 outcome=success
+INFO gateway tool call tool_name=athena.get_current_occupancy source_service=athena facility_id=ashtonbee latency_ms=<non-negative integer> outcome=success
 ```
 
 ## Degraded Check
@@ -88,10 +88,10 @@ Expected HTTP behavior:
 - `502 Bad Gateway`
 - clear connection or upstream failure text
 
-Expected gateway failure log:
+Expected gateway failure log shape:
 
 ```text
-INFO gateway tool call tool_name=athena.get_current_occupancy source_service=athena facility_id=ashtonbee latency_ms=0 outcome=upstream_error
+INFO gateway tool call tool_name=athena.get_current_occupancy source_service=athena facility_id=ashtonbee latency_ms=<non-negative integer> outcome=upstream_error
 ```
 
 ## What This Runbook Does Not Prove

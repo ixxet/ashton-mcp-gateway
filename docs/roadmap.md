@@ -17,6 +17,16 @@ Current unreleased working line on `main`: `v0.1.0`
 - approval, persisted audit, caller identity, and multi-service routing are
   still deferred
 
+## Versioning Discipline
+
+The gateway now follows formal pre-`1.0.0` semantic versioning.
+
+- `PATCH` releases cover hardening, docs sync, deployment closeout,
+  observability, and bounded non-widening fixes
+- `MINOR` releases cover new routed capabilities, new trust boundaries, or
+  intentional contract changes
+- pre-`1.0.0` breaking changes still require a `MINOR`, never a `PATCH`
+
 ## Planned Release Lines
 
 | Planned tag | Intended purpose | Restrictions | What it should not do yet |
@@ -24,6 +34,9 @@ Current unreleased working line on `main`: `v0.1.0`
 | `v0.2.0` | caller identity, persisted audit, and second routed read for Tracer 15 | keep the gateway read-only while adding stronger auditability | do not add write approvals yet |
 | `v0.3.0` | first write approval and HITL line | add explicit human approval for write calls only after the read path is trusted | do not widen into rate limiting or full multi-service orchestration in the same line |
 | `v0.4.0` | rate limiting and broader registry line | expand only after the gateway already has real read and write proof | do not justify a Rust rewrite without a measured Go bottleneck |
+
+The second routed read in `v0.2.0` may require a paired `ashton-proto v0.4.0`
+manifest release if the next routed tool widens the shared manifest surface.
 
 ## Next Ladder Role
 

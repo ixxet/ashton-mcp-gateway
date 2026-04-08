@@ -18,7 +18,7 @@ runtime honest while preserving the larger future control-plane shape.
 | `Unreleased on main` | the code and docs are present on `main`, but no matching git tag exists yet |
 | `Planned` | documented future work only |
 
-Current as of `2026-04-04`:
+Current as of `2026-04-08`:
 
 - latest shipped tag: `v0.0.1`
 - current unreleased working line on `main`: `v0.1.0`
@@ -69,7 +69,7 @@ flowchart LR
 | Documentation spine | Markdown READMEs, roadmap, runbook, ADR, growing pains | Instituted | `v0.0.1` | Keeps the gateway concept structured before code exists |
 | First implementation | Go | Instituted | `v0.1.0` | Fastest way to prove the pattern in the platform's primary language |
 | Protocol | narrow MCP-like JSON over HTTP | Instituted | `v0.1.0` | Enough to prove discovery and one routed call without pretending the full gateway is finished |
-| Tool discovery | Static manifests from service repos and `ashton-proto` | Instituted | `v0.1.0` | Keeps service ownership explicit |
+| Tool discovery | Static manifests from one configured directory, currently `ashton-proto/mcp` | Instituted | `v0.1.0` | Keeps service ownership explicit while the runtime still supports one manifest-backed route |
 | Inspectable logs | structured read-path logs | Instituted | `v0.1.0` | The first route now logs tool, source, facility, latency, and outcome |
 | Caller identity | Tailscale identity plus API keys | Planned | `v0.2.0` | Interactive and automated callers need different trust paths |
 | Audit trail | Postgres plus structured logs | Planned | `v0.2.0` | Tool routing without persisted audit would be a weak control layer |
@@ -152,6 +152,18 @@ The current release line is the authoritative boundary reminder.
 | `v0.0.1` | `v0.0.1` | Shipped | docs-only planning baseline | executable runtime, manifests, routing, audit, approvals, and rate limiting |
 | `v0.1.0` | - | Unreleased on `main` | executable Go runtime, first manifest-backed routed ATHENA occupancy read, and inspectable route logs | caller identity, persisted audit, approvals, and broader routing |
 
+## Versioning Discipline
+
+The gateway now follows formal pre-`1.0.0` semantic versioning.
+
+- `PATCH` releases cover hardening, docs sync, deployment closeout, observability,
+  and bounded non-widening fixes
+- `MINOR` releases cover new routed capabilities, new trust boundaries, or
+  intentional pre-`1.0.0` contract changes
+- pre-`1.0.0` breaking changes still require a `MINOR`, never a `PATCH`
+- `1.0.0` is reserved for a stable routed control surface with legible identity,
+  audit, and approval expectations
+
 ## Planned Release Lines
 
 | Planned tag | Intended purpose | Restrictions | What it should not do yet |
@@ -159,6 +171,9 @@ The current release line is the authoritative boundary reminder.
 | `v0.2.0` | caller identity plus persisted audit plus second routed read | keep the gateway read-only while adding stronger auditability | do not add write approvals yet |
 | `v0.3.0` | first write approval and HITL line | add explicit human approval for write calls only after the read path is trusted | do not widen into rate limiting or full multi-service orchestration in the same line |
 | `v0.4.0` | rate limiting and broader registry line | expand only after the gateway already has real read and write proof | do not justify a Rust rewrite without a measured Go bottleneck |
+
+The second routed read in `v0.2.0` may require a paired `ashton-proto v0.4.0`
+manifest release if the next routed tool widens the shared manifest surface.
 
 ## Next Ladder Role
 
@@ -196,6 +211,7 @@ control layer only when the platform has earned one."
 - [Current and future gateway diagram](docs/diagrams/gateway-route-and-approval.mmd)
 - [Roadmap](docs/roadmap.md)
 - [Growing pains](docs/growing-pains.md)
+- [Tracer 9 hardening](docs/hardening/tracer-9.md)
 - [First-route runbook](docs/runbooks/first-route.md)
 - [ADR 001: Go first, Rust later](docs/adr/001-go-first-rust-later.md)
 - [ADR index](docs/adr/README.md)
