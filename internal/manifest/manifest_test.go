@@ -41,6 +41,41 @@ func TestLoadDirLoadsSingleManifest(t *testing.T) {
 	}
 }
 
+func TestLoadDirLoadsZoneOccupancyManifest(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeManifestFile(t, dir, "athena-zone.json", `{
+  "name": "athena.get_current_zone_occupancy",
+  "description": "Read zone occupancy",
+  "read_only": true,
+  "input": {
+    "required": ["facility_id", "zone_id"],
+    "properties": {
+      "facility_id": {"type": "string", "description": "Facility"},
+      "zone_id": {"type": "string", "description": "Zone"}
+    }
+  },
+  "upstream": {
+    "service": "athena",
+    "method": "GET",
+    "path": "/api/v1/presence/count",
+    "query": {"facility": "facility_id", "zone": "zone_id"}
+  }
+}`)
+
+	registry, err := LoadDir(dir)
+	if err != nil {
+		t.Fatalf("LoadDir() error = %v", err)
+	}
+	if len(registry.Tools) != 1 {
+		t.Fatalf("LoadDir() tool count = %d, want 1", len(registry.Tools))
+	}
+	if registry.Tools[0].Name != "athena.get_current_zone_occupancy" {
+		t.Fatalf("LoadDir() tool name = %q, want %q", registry.Tools[0].Name, "athena.get_current_zone_occupancy")
+	}
+}
+
 func TestLoadDirRejectsMalformedManifest(t *testing.T) {
 	t.Parallel()
 
@@ -74,8 +109,29 @@ func TestLoadDirRejectsUnsupportedRuntimeShape(t *testing.T) {
 		payload string
 	}{
 		{
-			name: "unsupported tool name",
+			name:    "unsupported tool name",
 			payload: validManifestJSON("athena.list_sessions"),
+		},
+		{
+			name: "zone occupancy missing query",
+			payload: `{
+  "name": "athena.get_current_zone_occupancy",
+  "description": "Read zone occupancy",
+  "read_only": true,
+  "input": {
+    "required": ["facility_id", "zone_id"],
+    "properties": {
+      "facility_id": {"type": "string", "description": "Facility"},
+      "zone_id": {"type": "string", "description": "Zone"}
+    }
+  },
+  "upstream": {
+    "service": "athena",
+    "method": "GET",
+    "path": "/api/v1/presence/count",
+    "query": {"facility": "facility_id"}
+  }
+}`,
 		},
 		{
 			name: "unsupported method",

@@ -33,3 +33,25 @@ bugs, and the fixes that made the gateway more predictable and auditable.
   Fix: ignore `/ashton-mcp-gateway` in `.gitignore`.
   Rule: first-route smoke should leave behind evidence, not confusing local
   build noise.
+
+## 2026-04-08
+
+- Symptom: the first Tracer 15 pass could have treated trusted caller headers
+  as raw user input and turned caller attribution into spoofable theater.
+  Cause: the gateway had no prior identity boundary, so the cheapest possible
+  implementation path was to trust headers directly.
+  Fix: split caller identity into two explicit narrow paths:
+  `X-Gateway-Trusted-Caller-Token` plus caller headers for trusted internal
+  boundaries, and `X-Gateway-API-Key` for configured automation callers.
+  Rule: caller identity should be explicit, narrow, and testable; it should not
+  quietly become an auth-platform rewrite.
+
+- Symptom: the first audit closeout path returned a typed-nil `*ToolCallError`
+  on successful routed calls, which made handler code treat success like a
+  failure.
+  Cause: the fail-closed audit helper returned the typed error value directly
+  even when it was nil.
+  Fix: return a real `nil` after successful audit persistence and keep audit
+  failure as its own explicit error kind.
+  Rule: fail-closed audit logic must keep success and failure shapes legible in
+  both tests and handlers.

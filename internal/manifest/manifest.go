@@ -8,7 +8,26 @@ import (
 	"slices"
 )
 
-const supportedToolName = "athena.get_current_occupancy"
+type runtimeSupport struct {
+	required []string
+	query    map[string]string
+}
+
+var supportedTools = map[string]runtimeSupport{
+	"athena.get_current_occupancy": {
+		required: []string{"facility_id"},
+		query: map[string]string{
+			"facility": "facility_id",
+		},
+	},
+	"athena.get_current_zone_occupancy": {
+		required: []string{"facility_id", "zone_id"},
+		query: map[string]string{
+			"facility": "facility_id",
+			"zone":     "zone_id",
+		},
+	},
+}
 
 type Registry struct {
 	Tools []Tool
@@ -132,17 +151,20 @@ func validate(tool Tool) error {
 }
 
 func validateCurrentRuntimeSupport(tool Tool) error {
-	if tool.Name != supportedToolName {
-		return fmt.Errorf("current runtime supports only %q", supportedToolName)
+	support, ok := supportedTools[tool.Name]
+	if !ok {
+		return fmt.Errorf("current runtime supports only the Tracer 15 ATHENA occupancy tools")
 	}
 	if !tool.ReadOnly {
 		return fmt.Errorf("current runtime supports read-only tools only")
 	}
-	if len(tool.Input.Required) != 1 || tool.Input.Required[0] != "facility_id" {
-		return fmt.Errorf("current runtime requires exactly one required input: facility_id")
+	if !slices.Equal(tool.Input.Required, support.required) {
+		return fmt.Errorf("current runtime requires exact required inputs %v", support.required)
 	}
-	if _, ok := tool.Input.Properties["facility_id"]; !ok {
-		return fmt.Errorf("current runtime requires facility_id input metadata")
+	for _, required := range support.required {
+		if _, ok := tool.Input.Properties[required]; !ok {
+			return fmt.Errorf("current runtime requires %s input metadata", required)
+		}
 	}
 	if tool.Upstream.Service != "athena" {
 		return fmt.Errorf("current runtime supports ATHENA upstream only")
@@ -153,8 +175,13 @@ func validateCurrentRuntimeSupport(tool Tool) error {
 	if tool.Upstream.Path != "/api/v1/presence/count" {
 		return fmt.Errorf("current runtime supports ATHENA occupancy path only")
 	}
-	if tool.Upstream.Query["facility"] != "facility_id" {
-		return fmt.Errorf("current runtime requires facility query mapped from facility_id")
+	if len(tool.Upstream.Query) != len(support.query) {
+		return fmt.Errorf("current runtime requires exact query mapping %v", support.query)
+	}
+	for key, value := range support.query {
+		if tool.Upstream.Query[key] != value {
+			return fmt.Errorf("current runtime requires %s query mapped from %s", key, value)
+		}
 	}
 
 	return nil

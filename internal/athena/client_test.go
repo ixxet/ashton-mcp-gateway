@@ -30,7 +30,7 @@ func TestClientCurrentOccupancyConsumesAthenaReadSurface(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, server.Client())
-	result, err := client.CurrentOccupancy(context.Background(), testTool(), "ashtonbee")
+	result, err := client.CurrentOccupancy(context.Background(), testTool(), map[string]string{"facility_id": "ashtonbee"})
 	if err != nil {
 		t.Fatalf("CurrentOccupancy() error = %v", err)
 	}
@@ -53,7 +53,7 @@ func TestClientCurrentOccupancyPreservesValidZeroCountResults(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, server.Client())
-	result, err := client.CurrentOccupancy(context.Background(), testTool(), "missing")
+	result, err := client.CurrentOccupancy(context.Background(), testTool(), map[string]string{"facility_id": "missing"})
 	if err != nil {
 		t.Fatalf("CurrentOccupancy() error = %v", err)
 	}
@@ -75,7 +75,7 @@ func TestClientCurrentOccupancyMapsUpstreamFailuresClearly(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, server.Client())
-	_, err := client.CurrentOccupancy(context.Background(), testTool(), "ashtonbee")
+	_, err := client.CurrentOccupancy(context.Background(), testTool(), map[string]string{"facility_id": "ashtonbee"})
 	if err == nil {
 		t.Fatal("CurrentOccupancy() error = nil, want upstream failure")
 	}
@@ -99,7 +99,7 @@ func TestClientCurrentOccupancyMapsMalformedPayloadClearly(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, server.Client())
-	_, err := client.CurrentOccupancy(context.Background(), testTool(), "ashtonbee")
+	_, err := client.CurrentOccupancy(context.Background(), testTool(), map[string]string{"facility_id": "ashtonbee"})
 	if err == nil {
 		t.Fatal("CurrentOccupancy() error = nil, want malformed payload failure")
 	}
@@ -122,7 +122,7 @@ func TestClientCurrentOccupancyRejectsMissingObservedAt(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, server.Client())
-	_, err := client.CurrentOccupancy(context.Background(), testTool(), "ashtonbee")
+	_, err := client.CurrentOccupancy(context.Background(), testTool(), map[string]string{"facility_id": "ashtonbee"})
 	if err == nil {
 		t.Fatal("CurrentOccupancy() error = nil, want missing observed_at failure")
 	}
@@ -142,7 +142,7 @@ func TestClientCurrentOccupancyMapsTimeoutClearly(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, &http.Client{Timeout: 10 * time.Millisecond})
-	_, err := client.CurrentOccupancy(context.Background(), testTool(), "ashtonbee")
+	_, err := client.CurrentOccupancy(context.Background(), testTool(), map[string]string{"facility_id": "ashtonbee"})
 	if err == nil {
 		t.Fatal("CurrentOccupancy() error = nil, want timeout failure")
 	}
@@ -160,4 +160,33 @@ func testTool() manifest.Tool {
 	tool.Upstream.Path = "/api/v1/presence/count"
 	tool.Upstream.Query = map[string]string{"facility": "facility_id"}
 	return tool
+}
+
+func TestClientCurrentOccupancyMapsZoneQueryWhenConfigured(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("zone") != "gym-floor" {
+			t.Fatalf("zone query = %q, want %q", r.URL.Query().Get("zone"), "gym-floor")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"facility_id":"ashtonbee","zone_id":"gym-floor","current_count":4,"observed_at":"2026-04-03T11:05:00Z"}`))
+	}))
+	defer server.Close()
+
+	tool := testTool()
+	tool.Name = "athena.get_current_zone_occupancy"
+	tool.Upstream.Query["zone"] = "zone_id"
+
+	client := NewClient(server.URL, server.Client())
+	result, err := client.CurrentOccupancy(context.Background(), tool, map[string]string{
+		"facility_id": "ashtonbee",
+		"zone_id":     "gym-floor",
+	})
+	if err != nil {
+		t.Fatalf("CurrentOccupancy() error = %v", err)
+	}
+	if result.ZoneID != "gym-floor" {
+		t.Fatalf("CurrentOccupancy() zone_id = %q, want %q", result.ZoneID, "gym-floor")
+	}
 }

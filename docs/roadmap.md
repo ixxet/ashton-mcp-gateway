@@ -9,13 +9,14 @@ only after the underlying service surfaces are worth routing.
 
 Current shipped line: `v0.0.1`
 
-Current unreleased working line on `main`: `v0.1.0`
+Current working line: `v0.2.0`
 
 - one executable Go gateway runtime is real
-- one manifest loader is real
-- one routed read-only ATHENA occupancy call is real
-- approval, persisted audit, caller identity, and multi-service routing are
-  still deferred
+- shared manifest loading is real
+- caller identity for routed calls is real
+- persisted audit for routed calls is real
+- two routed read-only ATHENA occupancy calls are real
+- write approvals, rate limiting, and broader routing are still deferred
 
 ## Versioning Discipline
 
@@ -31,14 +32,10 @@ The gateway now follows formal pre-`1.0.0` semantic versioning.
 
 | Planned tag | Intended purpose | Restrictions | What it should not do yet |
 | --- | --- | --- | --- |
-| `v0.2.0` | caller identity, persisted audit, and second routed read for Tracer 15 | keep the gateway read-only while adding stronger auditability | do not add write approvals yet |
 | `v0.3.0` | first write approval and HITL line | add explicit human approval for write calls only after the read path is trusted | do not widen into rate limiting or full multi-service orchestration in the same line |
 | `v0.4.0` | rate limiting and broader registry line | expand only after the gateway already has real read and write proof | do not justify a Rust rewrite without a measured Go bottleneck |
 
-The second routed read in `v0.2.0` may require a paired `ashton-proto v0.4.0`
-manifest release if the next routed tool widens the shared manifest surface.
-
-## Next Ladder Role
+## Current Ladder Role
 
 | Line | Role | Why it matters |
 | --- | --- | --- |
@@ -48,10 +45,10 @@ manifest release if the next routed tool widens the shared manifest surface.
 
 ## Boundaries
 
-- Tracer 9 is not broad orchestration
-- the first gateway slice is one manifest, one routed read-only call, and
-  inspectable logs
-- approval, rate limiting, and Rust remain later lines
+- keep `tools/list` open and narrow
+- keep `tools/call` as the explicit identity and audit boundary
+- keep the routed slice read-only
+- keep APOLLO, HERMES, approvals, rate limiting, and Rust for later lines
 - the gateway only becomes useful after service surfaces are already real
 
 ## Tracer / Workstream Ownership

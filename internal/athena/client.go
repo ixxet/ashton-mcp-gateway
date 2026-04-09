@@ -18,6 +18,7 @@ type Client struct {
 
 type Occupancy struct {
 	FacilityID   string `json:"facility_id"`
+	ZoneID       string `json:"zone_id,omitempty"`
 	CurrentCount int    `json:"current_count"`
 	ObservedAt   string `json:"observed_at"`
 	Source       string `json:"source_service"`
@@ -54,7 +55,7 @@ func NewClient(baseURL string, httpClient *http.Client) *Client {
 	}
 }
 
-func (c *Client) CurrentOccupancy(ctx context.Context, tool manifest.Tool, facilityID string) (Occupancy, error) {
+func (c *Client) CurrentOccupancy(ctx context.Context, tool manifest.Tool, arguments map[string]string) (Occupancy, error) {
 	endpoint, err := url.Parse(c.baseURL + tool.Upstream.Path)
 	if err != nil {
 		return Occupancy{}, fmt.Errorf("build athena occupancy endpoint: %w", err)
@@ -62,8 +63,9 @@ func (c *Client) CurrentOccupancy(ctx context.Context, tool manifest.Tool, facil
 
 	query := endpoint.Query()
 	for key, source := range tool.Upstream.Query {
-		if source == "facility_id" {
-			query.Set(key, facilityID)
+		value, ok := arguments[source]
+		if ok {
+			query.Set(key, value)
 		}
 	}
 	endpoint.RawQuery = query.Encode()

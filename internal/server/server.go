@@ -2,9 +2,11 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/ixxet/ashton-mcp-gateway/internal/gateway"
+	"github.com/ixxet/ashton-mcp-gateway/internal/identity"
 	"github.com/ixxet/ashton-mcp-gateway/internal/manifest"
 )
 
@@ -35,7 +37,7 @@ type toolSummary struct {
 	SourceService string   `json:"source_service"`
 }
 
-func NewHandler(registry manifest.Registry, service *gateway.Service) http.Handler {
+func NewHandler(registry manifest.Registry, service *gateway.Service, resolver *identity.Resolver) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, healthResponse{
@@ -83,7 +85,22 @@ func NewHandler(registry manifest.Registry, service *gateway.Service) http.Handl
 			return
 		}
 
-		result, err := service.CallTool(r.Context(), request.ToolName, request.Arguments)
+		caller, err := resolver.Resolve(r)
+		if err != nil {
+			status := http.StatusUnauthorized
+			if errors.Is(err, identity.ErrAmbiguousIdentity) || (errors.Is(err, identity.ErrInvalidIdentity) && !errors.Is(err, identity.ErrUnknownAPIKey)) {
+				status = http.StatusBadRequest
+			}
+			if errors.Is(err, identity.ErrMissingIdentity) {
+				status = http.StatusUnauthorized
+			}
+			writeJSON(w, status, map[string]string{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		result, err := service.CallTool(r.Context(), caller, request.ToolName, request.Arguments)
 		if err != nil {
 			callErr, ok := err.(*gateway.ToolCallError)
 			if !ok {
