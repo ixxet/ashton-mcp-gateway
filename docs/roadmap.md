@@ -7,9 +7,9 @@ only after the underlying service surfaces are worth routing.
 
 ## Current Line
 
-Current shipped line: `v0.0.1`
+Current shipped line: `v0.2.0`
 
-Current working line: `v0.2.0`
+Current released line: `v0.2.0`
 
 - one executable Go gateway runtime is real
 - shared manifest loading is real

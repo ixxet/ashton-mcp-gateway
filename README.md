@@ -20,10 +20,10 @@ runtime honest while preserving the larger future control-plane shape.
 | `Working line` | the repo currently carries this line, but a matching tag may or may not exist yet |
 | `Planned` | documented future work only |
 
-Current as of `2026-04-08`:
+Current as of `2026-04-09`:
 
-- latest shipped tag: `v0.0.1`
-- current Tracer 15 working line: `v0.2.0`
+- latest shipped tag: `v0.2.0`
+- current Tracer 15 released line: `v0.2.0`
 - next planned line after that: `v0.3.0`
 
 ## Current And Future Architecture
@@ -162,7 +162,7 @@ The current release line is the authoritative boundary reminder.
 | --- | --- | --- | --- | --- |
 | `v0.0.1` | `v0.0.1` | Shipped | docs-only planning baseline | executable runtime, manifests, routing, audit, approvals, and rate limiting |
 | `v0.1.0` | - | Historical working line | executable Go runtime, first manifest-backed routed ATHENA occupancy read, and inspectable route logs | caller identity, persisted audit, approvals, and broader routing |
-| `v0.2.0` | - | Current Tracer 15 line | caller identity, persisted audit, and a second routed ATHENA zone occupancy read | write approvals, rate limiting, live deployment proof, and broader routing |
+| `v0.2.0` | `v0.2.0` | Current Tracer 15 released line | caller identity, persisted audit, and a second routed ATHENA zone occupancy read | write approvals, rate limiting, live deployment proof, and broader routing |
 
 ## Versioning Discipline
 
