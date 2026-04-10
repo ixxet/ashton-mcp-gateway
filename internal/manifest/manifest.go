@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 )
 
 type runtimeSupport struct {
@@ -53,7 +54,28 @@ type Tool struct {
 }
 
 func LoadDir(dir string) (Registry, error) {
-	entries, err := os.ReadDir(dir)
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return Registry{}, fmt.Errorf("manifest dir is required")
+	}
+
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return Registry{}, fmt.Errorf("resolve manifest dir: %w", err)
+	}
+
+	info, err := os.Lstat(absDir)
+	if err != nil {
+		return Registry{}, fmt.Errorf("stat manifest dir: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return Registry{}, fmt.Errorf("manifest dir %q must not be a symlink", absDir)
+	}
+	if !info.IsDir() {
+		return Registry{}, fmt.Errorf("manifest dir %q must be a directory", absDir)
+	}
+
+	entries, err := os.ReadDir(absDir)
 	if err != nil {
 		return Registry{}, fmt.Errorf("read manifest dir: %w", err)
 	}
@@ -62,11 +84,23 @@ func LoadDir(dir string) (Registry, error) {
 	seen := map[string]struct{}{}
 
 	for _, entry := range entries {
+		path := filepath.Join(absDir, entry.Name())
+		if entry.Type()&os.ModeSymlink != 0 {
+			return Registry{}, fmt.Errorf("manifest file %q must not be a symlink", path)
+		}
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 			continue
 		}
 
-		tool, err := loadFile(filepath.Join(dir, entry.Name()))
+		entryInfo, err := entry.Info()
+		if err != nil {
+			return Registry{}, fmt.Errorf("stat manifest %q: %w", path, err)
+		}
+		if !entryInfo.Mode().IsRegular() {
+			return Registry{}, fmt.Errorf("manifest file %q must be a regular file", path)
+		}
+
+		tool, err := loadFile(path)
 		if err != nil {
 			return Registry{}, err
 		}
@@ -79,7 +113,7 @@ func LoadDir(dir string) (Registry, error) {
 	}
 
 	if len(registry.Tools) == 0 {
-		return Registry{}, fmt.Errorf("manifest dir %q has no tool manifests", dir)
+		return Registry{}, fmt.Errorf("manifest dir %q has no tool manifests", absDir)
 	}
 
 	slices.SortFunc(registry.Tools, func(left, right Tool) int {
@@ -162,8 +196,17 @@ func validateCurrentRuntimeSupport(tool Tool) error {
 		return fmt.Errorf("current runtime requires exact required inputs %v", support.required)
 	}
 	for _, required := range support.required {
-		if _, ok := tool.Input.Properties[required]; !ok {
+		property, ok := tool.Input.Properties[required]
+		if !ok {
 			return fmt.Errorf("current runtime requires %s input metadata", required)
+		}
+		if property.Type != "string" {
+			return fmt.Errorf("current runtime requires %s to be typed as string", required)
+		}
+	}
+	for name, property := range tool.Input.Properties {
+		if property.Type != "string" {
+			return fmt.Errorf("current runtime supports string input properties only (invalid %s)", name)
 		}
 	}
 	if tool.Upstream.Service != "athena" {

@@ -3,12 +3,16 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/ixxet/ashton-mcp-gateway/internal/gateway"
 	"github.com/ixxet/ashton-mcp-gateway/internal/identity"
 	"github.com/ixxet/ashton-mcp-gateway/internal/manifest"
 )
+
+const maxToolCallRequestBytes int64 = 64 << 10
 
 type healthResponse struct {
 	Service       string `json:"service"`
@@ -78,9 +82,9 @@ func NewHandler(registry manifest.Registry, service *gateway.Service, resolver *
 		}
 
 		var request toolCallRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		if err := decodeToolCallRequest(w, r, &request); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "request body must be valid JSON",
+				"error": err.Error(),
 			})
 			return
 		}
@@ -126,4 +130,41 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func decodeToolCallRequest(w http.ResponseWriter, r *http.Request, request *toolCallRequest) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxToolCallRequestBytes)
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(request); err != nil {
+		return decodeBodyError(err)
+	}
+
+	var extra json.RawMessage
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return errors.New("request body must contain exactly one JSON object")
+	}
+
+	request.ToolName = strings.TrimSpace(request.ToolName)
+	if request.ToolName == "" {
+		return errors.New("tool_name is required")
+	}
+	if request.Arguments == nil {
+		request.Arguments = map[string]any{}
+	}
+
+	return nil
+}
+
+func decodeBodyError(err error) error {
+	var maxBytesErr *http.MaxBytesError
+	switch {
+	case errors.As(err, &maxBytesErr):
+		return errors.New("request body is too large")
+	case errors.Is(err, io.EOF):
+		return errors.New("request body must be valid JSON")
+	default:
+		return errors.New("request body must be valid JSON")
+	}
 }

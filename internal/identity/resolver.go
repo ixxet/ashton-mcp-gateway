@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net/http"
@@ -35,24 +36,36 @@ type APIKeyCaller struct {
 	Display string `json:"display"`
 }
 
+type configuredAPIKey struct {
+	key    string
+	caller Caller
+}
+
 type Resolver struct {
 	trustedCallerToken string
-	apiKeys            map[string]Caller
+	apiKeys            []configuredAPIKey
 }
 
 func NewResolver(trustedCallerToken string, apiKeys []APIKeyCaller) *Resolver {
 	resolver := &Resolver{
 		trustedCallerToken: strings.TrimSpace(trustedCallerToken),
-		apiKeys:            make(map[string]Caller, len(apiKeys)),
+		apiKeys:            make([]configuredAPIKey, 0, len(apiKeys)),
 	}
 
 	for _, apiKey := range apiKeys {
-		resolver.apiKeys[apiKey.Key] = Caller{
-			Type:    "automation",
-			ID:      strings.TrimSpace(apiKey.ID),
-			Display: strings.TrimSpace(apiKey.Display),
-			Method:  "api_key",
+		key := strings.TrimSpace(apiKey.Key)
+		if key == "" {
+			continue
 		}
+		resolver.apiKeys = append(resolver.apiKeys, configuredAPIKey{
+			key: key,
+			caller: Caller{
+				Type:    "automation",
+				ID:      strings.TrimSpace(apiKey.ID),
+				Display: strings.TrimSpace(apiKey.Display),
+				Method:  "api_key",
+			},
+		})
 	}
 
 	return resolver
@@ -72,7 +85,7 @@ func (r *Resolver) Resolve(request *http.Request) (Caller, error) {
 	}
 
 	if hasAPIKey {
-		caller, ok := r.apiKeys[apiKey]
+		caller, ok := r.resolveAPIKey(apiKey)
 		if !ok {
 			return Caller{}, fmt.Errorf("%w: %w", ErrInvalidIdentity, ErrUnknownAPIKey)
 		}
@@ -83,7 +96,7 @@ func (r *Resolver) Resolve(request *http.Request) (Caller, error) {
 		if r.trustedCallerToken == "" {
 			return Caller{}, fmt.Errorf("%w: trusted caller header mode is not configured", ErrInvalidIdentity)
 		}
-		if trustedToken != r.trustedCallerToken {
+		if !constantTimeEqual(trustedToken, r.trustedCallerToken) {
 			return Caller{}, fmt.Errorf("%w: trusted caller token is not recognized", ErrInvalidIdentity)
 		}
 		if callerID == "" {
@@ -104,4 +117,20 @@ func (r *Resolver) Resolve(request *http.Request) (Caller, error) {
 	}
 
 	return Caller{}, ErrMissingIdentity
+}
+
+func (r *Resolver) resolveAPIKey(apiKey string) (Caller, bool) {
+	for _, configured := range r.apiKeys {
+		if constantTimeEqual(apiKey, configured.key) {
+			return configured.caller, true
+		}
+	}
+	return Caller{}, false
+}
+
+func constantTimeEqual(left, right string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(left), []byte(right)) == 1
 }

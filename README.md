@@ -5,7 +5,8 @@ The first executable tool gateway for ASHTON.
 > Current real slice: one Go HTTP runtime that loads two shared manifests from
 > `ashton-proto`, keeps `POST /mcp/v1/tools/list` open and narrow, requires
 > explicit caller identity on `POST /mcp/v1/tools/call`, routes two read-only
-> ATHENA occupancy reads, and persists sanitized audit rows to Postgres while
+> ATHENA occupancy reads, validates declared arguments strictly, rejects
+> manifest path escapes, and persists sanitized audit rows to Postgres while
 > keeping the line read-only. Nothing broader is claimed yet.
 
 That is the correct current state. The gateway only became worth implementing
@@ -20,10 +21,10 @@ runtime honest while preserving the larger future control-plane shape.
 | `Working line` | the repo currently carries this line, but a matching tag may or may not exist yet |
 | `Planned` | documented future work only |
 
-Current as of `2026-04-09`:
+Current as of `2026-04-10`:
 
 - latest shipped tag: `v0.2.0`
-- current Tracer 15 released line: `v0.2.0`
+- current working line on `main`: `v0.2.1`
 - next planned line after that: `v0.3.0`
 
 ## Current And Future Architecture
@@ -59,8 +60,10 @@ flowchart LR
 | Go gateway implementation | Real, narrow | One HTTP runtime starts locally and loads static manifests |
 | Health surface | Real | `GET /health` returns service status and manifest count |
 | MCP-like list surface | Real, open and narrow | `POST /mcp/v1/tools/list` returns the registered tool metadata without widening into auth-platform work |
-| Caller identity | Real, narrow | `POST /mcp/v1/tools/call` accepts trusted caller headers for internal callers and API keys for automation |
+| Caller identity | Real, narrow | `POST /mcp/v1/tools/call` accepts trusted caller headers for internal callers and API keys for automation, with constant-time secret comparison |
 | Persisted audit | Real, narrow | Routed calls persist sanitized audit rows to Postgres and fail closed if the audit write fails |
+| Argument validation | Real, narrow | Routed calls reject undeclared arguments and wrong-type optional arguments before upstream routing |
+| Manifest loading boundary | Real, narrow | The configured manifest directory rejects symlink escapes and non-regular manifest files |
 | First routed read-only call | Real | `POST /mcp/v1/tools/call` routes `athena.get_current_occupancy` |
 | Second routed read-only call | Real | `POST /mcp/v1/tools/call` routes `athena.get_current_zone_occupancy` |
 | Inspectable read-path logs | Real | Success and routed failures emit bounded structured logs without leaking secrets |
@@ -74,9 +77,9 @@ flowchart LR
 | Documentation spine | Markdown READMEs, roadmap, runbooks, ADR, growing pains | Instituted | `v0.0.1` | Keeps the gateway concept structured before code exists |
 | Gateway runtime | Go | Instituted | `v0.1.0` -> `v0.2.0` | Fastest way to prove the pattern in the platform's primary language |
 | Protocol | narrow MCP-like JSON over HTTP | Instituted | `v0.1.0` -> `v0.2.0` | Enough to prove discovery and routed calls without pretending the full gateway is finished |
-| Tool discovery | Static manifests from one configured directory, currently `ashton-proto/mcp` | Real, narrow | `v0.1.0` -> `v0.2.0` | Keeps service ownership explicit while the runtime still supports only two manifest-backed ATHENA reads |
-| Caller identity | trusted caller headers plus API keys | Real, narrow | `v0.2.0` | Interactive and automated callers need different trust paths without an auth-platform rewrite |
-| Audit trail | Postgres plus structured logs | Real, narrow | `v0.2.0` | Tool routing without persisted audit would be a weak control layer |
+| Tool discovery | Static manifests from one configured directory, currently `ashton-proto/mcp` | Real, narrow | `v0.1.0` -> `v0.2.1` | Keeps service ownership explicit while the runtime still supports only two manifest-backed ATHENA reads |
+| Caller identity | trusted caller headers plus API keys | Real, narrow | `v0.2.0` -> `v0.2.1` | Interactive and automated callers need different trust paths without an auth-platform rewrite |
+| Audit trail | Postgres plus structured logs | Real, narrow | `v0.2.0` -> `v0.2.1` | Tool routing without persisted audit would be a weak control layer |
 | Approval path | Explicit human-in-the-loop gate | Planned | `v0.3.0` | Required before real write actions are exposed |
 | Rate limiting | Redis token bucket | Deferred | `v0.4.0` | Useful later, not required for the read-only routed slice |
 | Later rewrite path | Rust | Deferred | later than `v0.4.0` | Earned only after measured routing or concurrency pressure exists |
@@ -108,10 +111,10 @@ The current release line is the authoritative boundary reminder.
 | --- | --- | --- | --- |
 | Health | `GET /health` | Real | Returns service status and `manifests_loaded` |
 | Tools list | `POST /mcp/v1/tools/list` | Real, open and narrow | Returns exactly the registered manifest-backed tool definitions |
-| Tools call | `POST /mcp/v1/tools/call` | Real, caller-aware | Requires explicit caller identity and routes the supported read-only tool calls |
+| Tools call | `POST /mcp/v1/tools/call` | Real, caller-aware | Requires explicit caller identity, bounded JSON decoding, and declared-argument validation before routing the supported read-only tool calls |
 | Trusted caller identity | `X-Gateway-Trusted-Caller-Token`, `X-Gateway-Caller-Type`, `X-Gateway-Caller-Id`, optional `X-Gateway-Caller-Display` | Real, narrow | Intended for trusted internal boundaries only |
 | Automated caller identity | `X-Gateway-API-Key` | Real, narrow | Intended for configured automation callers only |
-| Manifest registry | `GATEWAY_MANIFEST_DIR` | Real | Loads `*.json` tool manifests from the configured directory |
+| Manifest registry | `GATEWAY_MANIFEST_DIR` | Real | Loads `*.json` tool manifests from the configured directory and rejects symlink directory/file escapes |
 | Audit store | `GATEWAY_AUDIT_DATABASE_URL` | Real | Persists sanitized audit rows for routed calls |
 | Read-path logs | stdout structured logs | Real | Emits `tool_name`, `source_service`, routed arguments, `latency_ms`, and `outcome` without leaking secrets |
 
@@ -136,6 +139,12 @@ The current release line is the authoritative boundary reminder.
 - routed calls persist sanitized audit rows for success, unknown-tool, invalid-
   argument, and upstream-failure outcomes that cross the route boundary
 - routed calls fail closed if the audit store is unavailable
+- routed calls reject undeclared arguments and wrong-type optional arguments
+  before they touch ATHENA
+- tool-call request bodies are size-bounded and reject unknown top-level JSON
+  fields
+- trusted caller tokens and API keys are compared without direct string-equals
+  shortcuts
 - routed calls emit inspectable logs on both success and routed failure paths
 
 ### Real but intentionally narrow

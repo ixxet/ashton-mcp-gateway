@@ -9,13 +9,16 @@ only after the underlying service surfaces are worth routing.
 
 Current shipped line: `v0.2.0`
 
-Current released line: `v0.2.0`
+Current working line on `main`: `v0.2.1`
 
 - one executable Go gateway runtime is real
 - shared manifest loading is real
 - caller identity for routed calls is real
 - persisted audit for routed calls is real
 - two routed read-only ATHENA occupancy calls are real
+- the current hardening follow-up also adds constant-time caller-secret checks,
+  declared-argument enforcement, manifest path hardening, and bounded tool-call
+  body decoding
 - write approvals, rate limiting, and broader routing are still deferred
 
 ## Versioning Discipline
@@ -40,6 +43,7 @@ The gateway now follows formal pre-`1.0.0` semantic versioning.
 | Line | Role | Why it matters |
 | --- | --- | --- |
 | `Tracer 15` | caller identity, persisted audit, and one second routed read | turns the gateway from a first routed proof into a trusted narrow control-plane layer |
+| `v0.2.1` | Milestone 2.0 hardening follow-up for caller, manifest, and request boundaries | makes the existing routed slice safer without widening into writes or new services |
 | `v0.3.0` | first write approval and HITL line | adds explicit write governance only after the read path is trusted |
 | `v0.4.0` | broader registry and rate limiting | widens the control plane only after read and write proof already exist |
 

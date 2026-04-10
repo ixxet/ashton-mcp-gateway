@@ -101,6 +101,46 @@ func TestLoadDirRejectsDuplicateNames(t *testing.T) {
 	}
 }
 
+func TestLoadDirRejectsSymlinkDirectory(t *testing.T) {
+	t.Parallel()
+
+	parent := t.TempDir()
+	target := filepath.Join(parent, "manifests")
+	if err := os.Mkdir(target, 0o755); err != nil {
+		t.Fatalf("os.Mkdir(%q) error = %v", target, err)
+	}
+
+	link := filepath.Join(parent, "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("os.Symlink() not supported: %v", err)
+	}
+
+	_, err := LoadDir(link)
+	if err == nil {
+		t.Fatal("LoadDir() error = nil, want symlink-directory failure")
+	}
+}
+
+func TestLoadDirRejectsSymlinkManifestFile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	target := filepath.Join(t.TempDir(), "tool.json")
+	if err := os.WriteFile(target, []byte(validManifestJSON("athena.get_current_occupancy")), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%q) error = %v", target, err)
+	}
+
+	link := filepath.Join(dir, "tool.json")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("os.Symlink() not supported: %v", err)
+	}
+
+	_, err := LoadDir(dir)
+	if err == nil {
+		t.Fatal("LoadDir() error = nil, want symlink-manifest failure")
+	}
+}
+
 func TestLoadDirRejectsUnsupportedRuntimeShape(t *testing.T) {
 	t.Parallel()
 
@@ -148,6 +188,26 @@ func TestLoadDirRejectsUnsupportedRuntimeShape(t *testing.T) {
   "upstream": {
     "service": "athena",
     "method": "POST",
+    "path": "/api/v1/presence/count",
+    "query": {"facility": "facility_id"}
+  }
+}`,
+		},
+		{
+			name: "unsupported property type",
+			payload: `{
+  "name": "athena.get_current_occupancy",
+  "description": "Read occupancy",
+  "read_only": true,
+  "input": {
+    "required": ["facility_id"],
+    "properties": {
+      "facility_id": {"type": "integer", "description": "Facility"}
+    }
+  },
+  "upstream": {
+    "service": "athena",
+    "method": "GET",
     "path": "/api/v1/presence/count",
     "query": {"facility": "facility_id"}
   }

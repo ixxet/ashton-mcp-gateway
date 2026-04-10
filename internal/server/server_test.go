@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -197,6 +198,39 @@ func TestToolsCallEndpointRejectsMalformedJSON(t *testing.T) {
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
+	}
+}
+
+func TestToolsCallEndpointRejectsUnknownTopLevelFields(t *testing.T) {
+	handler := NewHandler(testRegistry(), testService(), testResolver())
+
+	request := httptest.NewRequest(http.MethodPost, "/mcp/v1/tools/call", bytes.NewBufferString(`{
+		"tool_name": "athena.get_current_occupancy",
+		"arguments": {"facility_id": "ashtonbee"},
+		"unexpected": true
+	}`))
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
+	}
+}
+
+func TestToolsCallEndpointRejectsOversizedJSONBody(t *testing.T) {
+	handler := NewHandler(testRegistry(), testService(), testResolver())
+
+	oversizedArgument := strings.Repeat("a", int(maxToolCallRequestBytes))
+	payload := fmt.Sprintf(`{"tool_name":"athena.get_current_occupancy","arguments":{"facility_id":"%s"}}`, oversizedArgument)
+	request := httptest.NewRequest(http.MethodPost, "/mcp/v1/tools/call", bytes.NewBufferString(payload))
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadRequest)
+	}
+	if !strings.Contains(recorder.Body.String(), "request body is too large") {
+		t.Fatalf("body = %q, want size failure", recorder.Body.String())
 	}
 }
 

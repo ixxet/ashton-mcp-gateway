@@ -79,3 +79,20 @@ func TestResolverRejectsUnknownAPIKey(t *testing.T) {
 		t.Fatalf("Resolve() error = %v, want unknown API key", err)
 	}
 }
+
+func TestResolverRejectsUnknownTrustedCallerToken(t *testing.T) {
+	resolver := NewResolver("trusted-token", nil)
+
+	request := httptest.NewRequest("POST", "/mcp/v1/tools/call", nil)
+	request.Header.Set(HeaderTrustedCallerToken, "wrong-token")
+	request.Header.Set(HeaderCallerType, "interactive")
+	request.Header.Set(HeaderCallerID, "operator-001")
+
+	_, err := resolver.Resolve(request)
+	if err == nil {
+		t.Fatal("Resolve() error = nil, want invalid trusted caller token failure")
+	}
+	if !errors.Is(err, ErrInvalidIdentity) {
+		t.Fatalf("Resolve() error = %v, want invalid identity", err)
+	}
+}

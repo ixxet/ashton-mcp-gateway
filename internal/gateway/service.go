@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/ixxet/ashton-mcp-gateway/internal/athena"
@@ -73,7 +74,7 @@ func (s *Service) CallTool(ctx context.Context, caller identity.Caller, name str
 		return ToolCallResult{}, s.finalizeCall(ctx, caller, name, "", sanitizedArguments, ToolCallResult{}, callErr, startedAt)
 	}
 
-	requiredArguments, err := requiredArguments(arguments, tool.Input.Required)
+	validatedArguments, err := validateArguments(arguments, tool)
 	if err != nil {
 		callErr := &ToolCallError{
 			StatusCode: 400,
@@ -84,7 +85,7 @@ func (s *Service) CallTool(ctx context.Context, caller identity.Caller, name str
 		return ToolCallResult{}, s.finalizeCall(ctx, caller, tool.Name, tool.Upstream.Service, sanitizedArguments, ToolCallResult{}, callErr, startedAt)
 	}
 
-	occupancy, err := s.athena.CurrentOccupancy(ctx, tool, requiredArguments)
+	occupancy, err := s.athena.CurrentOccupancy(ctx, tool, validatedArguments)
 	latencyMS := time.Since(startedAt).Milliseconds()
 	if err != nil {
 		callErr := &ToolCallError{
@@ -182,21 +183,44 @@ func (s *Service) logCall(toolName, sourceService string, arguments map[string]a
 	)
 }
 
-func requiredArguments(arguments map[string]any, required []string) (map[string]string, error) {
-	values := make(map[string]string, len(required))
-	for _, key := range required {
-		value, ok := arguments[key]
+func validateArguments(arguments map[string]any, tool manifest.Tool) (map[string]string, error) {
+	values := make(map[string]string, len(arguments))
+	for key, value := range arguments {
+		property, ok := tool.Input.Properties[key]
 		if !ok {
-			return nil, fmt.Errorf("%s is required", key)
+			return nil, fmt.Errorf("%s is not declared", key)
 		}
-
-		text, ok := value.(string)
-		if !ok || text == "" {
-			return nil, fmt.Errorf("%s must be a non-empty string", key)
+		text, err := validateArgumentValue(key, value, property.Type)
+		if err != nil {
+			return nil, err
 		}
 		values[key] = text
 	}
+
+	for _, key := range tool.Input.Required {
+		if _, ok := values[key]; !ok {
+			return nil, fmt.Errorf("%s is required", key)
+		}
+	}
+
 	return values, nil
+}
+
+func validateArgumentValue(key string, value any, propertyType string) (string, error) {
+	switch propertyType {
+	case "string":
+		text, ok := value.(string)
+		if !ok {
+			return "", fmt.Errorf("%s must be a non-empty string", key)
+		}
+		text = strings.TrimSpace(text)
+		if text == "" {
+			return "", fmt.Errorf("%s must be a non-empty string", key)
+		}
+		return text, nil
+	default:
+		return "", fmt.Errorf("%s uses unsupported type %q", key, propertyType)
+	}
 }
 
 func sanitizeArguments(arguments map[string]any) string {

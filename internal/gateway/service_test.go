@@ -175,6 +175,64 @@ func TestCallToolRejectsInvalidArgumentsAndAuditsAttempt(t *testing.T) {
 	}
 }
 
+func TestCallToolRejectsUndeclaredArgumentsAndAuditsAttempt(t *testing.T) {
+	t.Parallel()
+
+	auditRecorder := &stubAuditRecorder{}
+	service := NewService(testRegistry(), stubAthenaClient{}, auditRecorder, slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)))
+
+	_, err := service.CallTool(context.Background(), testCaller, "athena.get_current_occupancy", map[string]any{
+		"facility_id": "ashtonbee",
+		"unexpected":  "value",
+	})
+	if err == nil {
+		t.Fatal("CallTool() error = nil, want undeclared-argument failure")
+	}
+
+	callErr, ok := err.(*ToolCallError)
+	if !ok {
+		t.Fatalf("CallTool() error type = %T, want *ToolCallError", err)
+	}
+	if callErr.StatusCode != 400 {
+		t.Fatalf("CallTool() status code = %d, want 400", callErr.StatusCode)
+	}
+	if len(auditRecorder.entries) != 1 {
+		t.Fatalf("len(audit entries) = %d, want 1", len(auditRecorder.entries))
+	}
+	if auditRecorder.entries[0].Outcome != "invalid_arguments" {
+		t.Fatalf("audit outcome = %q, want invalid_arguments", auditRecorder.entries[0].Outcome)
+	}
+}
+
+func TestCallToolRejectsWrongTypeOptionalArgumentsAndAuditsAttempt(t *testing.T) {
+	t.Parallel()
+
+	auditRecorder := &stubAuditRecorder{}
+	service := NewService(testRegistryWithOptionalArgument(), stubAthenaClient{}, auditRecorder, slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)))
+
+	_, err := service.CallTool(context.Background(), testCaller, "athena.get_current_occupancy", map[string]any{
+		"facility_id": "ashtonbee",
+		"detail":      5,
+	})
+	if err == nil {
+		t.Fatal("CallTool() error = nil, want wrong-type optional-argument failure")
+	}
+
+	callErr, ok := err.(*ToolCallError)
+	if !ok {
+		t.Fatalf("CallTool() error type = %T, want *ToolCallError", err)
+	}
+	if callErr.StatusCode != 400 {
+		t.Fatalf("CallTool() status code = %d, want 400", callErr.StatusCode)
+	}
+	if len(auditRecorder.entries) != 1 {
+		t.Fatalf("len(audit entries) = %d, want 1", len(auditRecorder.entries))
+	}
+	if auditRecorder.entries[0].Outcome != "invalid_arguments" {
+		t.Fatalf("audit outcome = %q, want invalid_arguments", auditRecorder.entries[0].Outcome)
+	}
+}
+
 func TestCallToolLogsUpstreamFailuresAndAuditsAttempt(t *testing.T) {
 	t.Parallel()
 
@@ -312,4 +370,13 @@ func testRegistry() manifest.Registry {
 	}
 
 	return manifest.Registry{Tools: []manifest.Tool{occupancy, zone}}
+}
+
+func testRegistryWithOptionalArgument() manifest.Registry {
+	registry := testRegistry()
+	registry.Tools[0].Input.Properties["detail"] = struct {
+		Type        string `json:"type"`
+		Description string `json:"description"`
+	}{Type: "string", Description: "Detail level"}
+	return registry
 }
