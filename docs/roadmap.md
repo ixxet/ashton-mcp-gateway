@@ -47,6 +47,18 @@ The gateway now follows formal pre-`1.0.0` semantic versioning.
 | `v0.3.0` | first write approval and HITL line | adds explicit write governance only after the read path is trusted |
 | `v0.4.0` | broader registry and rate limiting | widens the control plane only after read and write proof already exist |
 
+## Verified Audit Carry-Forward
+
+The `2026-04-13` backend logic audit reran `go test -count=1 ./...` and
+re-read the routed call, audit, and hardening paths before carrying anything
+forward.
+
+| Area | Ruling | Next honest line |
+| --- | --- | --- |
+| audit persistence on successful routed calls | verified: the current gateway still fails closed and returns `audit_failure` if the persisted audit write fails after a successful upstream read | the next gateway line must make this an explicit policy decision before broader routing or write approvals widen the surface |
+| audit-failure behavior | verified: current tests and hardening docs intentionally encode the fail-closed behavior | keep docs, tests, and service behavior aligned if this policy ever changes; do not let the behavior drift silently in a mixed hardening line |
+| broader routing / approvals | unchanged and deferred | do not use the audit-policy follow-up as cover to widen into APOLLO or HERMES routing, HITL, or deployment work |
+
 ## Boundaries
 
 - keep `tools/list` open and narrow
